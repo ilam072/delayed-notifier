@@ -56,3 +56,25 @@ func (r *Repo) GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.Notifica
 
 	return status, nil
 }
+
+func (r *Repo) UpdateStatus(ctx context.Context, ID uuid.UUID, status domain.NotificationStatus) error {
+	const op = "repo.notification.UpdateStatus"
+
+	query := `UPDATE notifications SET status = $1 WHERE id = $2`
+
+	res, err := r.db.ExecContext(ctx, query, status, ID)
+	if err != nil {
+		return errutils.Wrap(op, err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return errutils.Wrap(op, err)
+	}
+
+	if rows == 0 {
+		return errutils.Wrap(op, repo.ErrNotifNotFound)
+	}
+
+	return nil
+}
