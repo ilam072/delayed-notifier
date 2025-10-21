@@ -17,6 +17,7 @@ import (
 type Notification interface {
 	Create(ctx context.Context, notification dto.Notification, strategy retry.Strategy) error
 	GetStatusByID(ctx context.Context, ID string) (string, error)
+	SetStatus(ctx context.Context, ID string, status string, strategy retry.Strategy) error
 }
 
 type Handler struct {
@@ -61,10 +62,30 @@ func (h *Handler) GetNotificationStatus(c *ginext.Context) {
 			c.JSON(http.StatusNotFound, response.Error("notification with such id not found"))
 			return
 		}
-		zlog.Logger.Error().Err(err).Msg("failed to get notification status")
+		zlog.Logger.Error().Err(err).Str("id", id.String()).Msg("failed to cancel notification")
 		c.JSON(http.StatusInternalServerError, response.Error("failed to get notification status"))
 		return
 	}
 
 	c.JSON(http.StatusOK, response.Success(status))
+}
+
+func (h *Handler) CancelNotification(c *ginext.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("id must be UUID format"))
+		return
+	}
+
+	if err := h.notification.SetStatus(c.Request.Context(), id.String(), "canceled", h.strategy); err != nil {
+		if errors.Is(err, service.ErrNotifNotFound) {
+			c.JSON(http.StatusNotFound, response.Error("notification with such id not found"))
+			return
+		}
+		zlog.Logger.Error().Err(err).Str("id", id.String()).Msg("failed to cancel notification")
+		c.JSON(http.StatusInternalServerError, response.Error("failed to cancel notification"))
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
