@@ -7,8 +7,10 @@ import (
 )
 
 type Config struct {
-	DB     DBConfig     `mapstructure:",squash"`
-	Server ServerConfig `mapstructure:",squash"`
+	DB       DBConfig       `mapstructure:",squash"`
+	Server   ServerConfig   `mapstructure:",squash"`
+	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
+	Retry    RetryConfig    `mapstructure:",squash"`
 }
 
 type DBConfig struct {
@@ -25,6 +27,23 @@ type DBConfig struct {
 
 type ServerConfig struct {
 	HTTPPort string `mapstructure:"HTTP_PORT"`
+}
+
+type RabbitMQConfig struct {
+	User       string `mapstructure:"RABBIT_USER"`
+	Password   string `mapstructure:"RABBIT_PASSWORD"`
+	Host       string `mapstructure:"RABBIT_HOST"`
+	Port       string `mapstructure:"RABBIT_PORT"`
+	Exchange   string `mapstructure:"EXCHANGE"`
+	RoutingKey string `mapstructure:"ROUTING_KEY"`
+	Queue      string `mapstructure:"QUEUE"`
+	DLQ        string `mapstructure:"DLQ"`
+}
+
+type RetryConfig struct {
+	Attempts int           `mapstructure:"RETRY_ATTEMPTS"`
+	Delay    time.Duration `mapstructure:"RETRY_DELAY"`
+	Backoff  float64       `mapstructure:"RETRY_BACKOFF"`
 }
 
 func MustLoad() *Config {
