@@ -22,6 +22,7 @@ type Notifier interface {
 type Repo interface {
 	CreateNotification(ctx context.Context, notification domain.Notification) error
 	GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.NotificationStatus, error)
+	UpdateStatus(ctx context.Context, ID uuid.UUID, status domain.NotificationStatus) error
 }
 
 type Cache interface {
@@ -52,7 +53,7 @@ func (n *Notification) Create(ctx context.Context, notification dto.Notification
 
 	err = n.cache.SetStatusWithRetry(ctx, domainNotif.ID.String(), string(domainNotif.Status), strategy)
 	if err != nil {
-		return errutils.Wrap(op, err)
+		zlog.Logger.Error().Err(err).Str("id", domainNotif.ID.String()).Msg("failed to cache notification status")
 	}
 
 	message := domainToMessage(domainNotif)
@@ -88,6 +89,28 @@ func (n *Notification) GetStatusByID(ctx context.Context, ID string) (string, er
 	}
 
 	return string(domainStatus), nil
+}
+
+func (n *Notification) SetStatus(ctx context.Context, ID string, status string, strategy retry.Strategy) error {
+	const op = "service.notification.SetStatus"
+
+	parsedID, err := uuid.Parse(ID)
+	if err != nil {
+		return errutils.Wrap(op, err)
+	}
+
+	if err := n.notifRepo.UpdateStatus(ctx, parsedID, domain.NotificationStatus(status)); err != nil {
+		if errors.Is(err, repo.ErrNotifNotFound) {
+			return errutils.Wrap(op, ErrNotifNotFound)
+		}
+		return errutils.Wrap(op, err)
+	}
+
+	if err := n.cache.SetStatusWithRetry(ctx, ID, status, strategy); err != nil {
+		zlog.Logger.Error().Err(err).Str("id", ID).Msg("failed to cache notification status")
+	}
+
+	return nil
 }
 
 func domainToMessage(notification domain.Notification) notifier.Message {
