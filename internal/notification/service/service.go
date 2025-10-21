@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"delayed-notifier/internal/notification/rabbitmq/notifier"
+	"delayed-notifier/internal/notification/repo"
 	"delayed-notifier/internal/notification/types/domain"
 	"delayed-notifier/internal/notification/types/dto"
 	"delayed-notifier/pkg/errutils"
+	"errors"
 	"github.com/google/uuid"
+	"github.com/wb-go/wbf/redis"
 	"github.com/wb-go/wbf/retry"
+	"github.com/wb-go/wbf/zlog"
 	"time"
 )
 
@@ -17,17 +21,23 @@ type Notifier interface {
 
 type Repo interface {
 	CreateNotification(ctx context.Context, notification domain.Notification) error
+	GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.NotificationStatus, error)
 }
 
 type Cache interface {
-	SetStatusWithRetry(ctx context.Context, id uuid.UUID, status string, strategy retry.Strategy) error
+	SetStatusWithRetry(ctx context.Context, id string, status string, strategy retry.Strategy) error
+	GetStatus(ctx context.Context, id string) (string, error)
 }
 
 type Notification struct {
-	repo     Repo
-	notifier Notifier
-	cache    Cache
+	notifRepo Repo
+	notifier  Notifier
+	cache     Cache
 }
+
+var (
+	ErrNotifNotFound = errors.New("notification not found")
+)
 
 func (s *Notification) Create(ctx context.Context, notification dto.Notification, strategy retry.Strategy) error {
 	const op = "service.notification.Create"
@@ -36,11 +46,11 @@ func (s *Notification) Create(ctx context.Context, notification dto.Notification
 	if err != nil {
 		return errutils.Wrap(op, err)
 	}
-	if err := s.repo.CreateNotification(ctx, domainNotif); err != nil {
+	if err := s.notifRepo.CreateNotification(ctx, domainNotif); err != nil {
 		return errutils.Wrap(op, err)
 	}
 
-	err = s.cache.SetStatusWithRetry(ctx, domainNotif.ID, string(domainNotif.Status), strategy)
+	err = s.cache.SetStatusWithRetry(ctx, domainNotif.ID.String(), string(domainNotif.Status), strategy)
 	if err != nil {
 		return errutils.Wrap(op, err)
 	}
@@ -51,6 +61,33 @@ func (s *Notification) Create(ctx context.Context, notification dto.Notification
 	}
 
 	return nil
+}
+
+func (n *Notification) GetStatusByID(ctx context.Context, ID string) (string, error) {
+	const op = "service.notification.GetStatusByID"
+
+	status, err := n.cache.GetStatus(ctx, ID)
+	if err == nil {
+		return status, nil
+	}
+	if !errors.Is(err, redis.NoMatches) {
+		zlog.Logger.Error().Err(err).Str("id", ID).Msg("failed to get notification status from cache")
+	}
+
+	parsedID, err := uuid.Parse(ID)
+	if err != nil {
+		return "", errutils.Wrap(op, err)
+	}
+
+	domainStatus, err := n.notifRepo.GetStatusByID(ctx, parsedID)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotifNotFound) {
+			return "", errutils.Wrap(op, ErrNotifNotFound)
+		}
+		return "", errutils.Wrap(op, err)
+	}
+
+	return string(domainStatus), nil
 }
 
 func domainToMessage(notification domain.Notification) notifier.Message {

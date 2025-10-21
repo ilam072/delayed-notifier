@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS notification (
     id UUID PRIMARY KEY,
     message TEXT NOT NULL,
     scheduled_at TIMESTAMP NOT NULL,
-    retries INT NOT NULL DEFAULT 0,
     channel notification_channel NOT NULL,
     status notification_status NOT NULL DEFAULT 'scheduled',
     recipient TEXT NOT NULL,
