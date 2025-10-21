@@ -1,12 +1,14 @@
 package notifier
 
 import (
+	"context"
 	"delayed-notifier/pkg/errutils"
 	"encoding/json"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/wb-go/wbf/rabbitmq"
 	"github.com/wb-go/wbf/retry"
+	"github.com/wb-go/wbf/zlog"
 	"time"
 )
 
@@ -110,9 +112,44 @@ func (n *Notifier) Publish(notification Message, strategy retry.Strategy) error 
 
 	headers := amqp.Table{"x-delay": int(delay.Milliseconds())}
 
-	if err := n.publisher.PublishWithRetry(body, n.opts.RoutingKey, "application/json", strategy, rabbitmq.PublishingOptions{Headers: headers}); err != nil {
+	if err := n.publisher.PublishWithRetry(
+		body,
+		n.opts.RoutingKey,
+		"application/json",
+		strategy,
+		rabbitmq.PublishingOptions{Headers: headers},
+	); err != nil {
 		return errutils.Wrap("failed to publish message with retry", err)
 	}
 
 	return nil
+}
+
+func (n *Notifier) Consume(ctx context.Context, notifications chan Message, strategy retry.Strategy) error {
+	msgChan := make(chan []byte)
+
+	go func() {
+		defer close(notifications)
+		for {
+			select {
+			case <-ctx.Done():
+				zlog.Logger.Info().Msg("consumer shutdown...")
+				return
+			case msg, ok := <-msgChan:
+				if !ok {
+					return
+				}
+
+				var notification Message
+				if err := json.Unmarshal(msg, &notification); err != nil {
+					zlog.Logger.Error().Err(err).Msg("failed to unmarshal notification message")
+					continue
+				}
+
+				notifications <- notification
+			}
+		}
+	}()
+
+	return n.consumer.ConsumeWithRetry(msgChan, strategy)
 }
