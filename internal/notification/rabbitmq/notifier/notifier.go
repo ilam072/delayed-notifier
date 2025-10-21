@@ -21,7 +21,6 @@ type Message struct {
 	ID          uuid.UUID
 	Message     string
 	ScheduledAt time.Time
-	Retries     int // TODO: убрать поле
 	Channel     string
 	Recipient   string
 }

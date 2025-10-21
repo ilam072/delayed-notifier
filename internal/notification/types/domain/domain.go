@@ -28,7 +28,7 @@ type Notification struct {
 	ID          uuid.UUID
 	Message     string
 	ScheduledAt time.Time
-	Retries     int
+	Retries     int // TODO: Убрать поле
 	Channel     NotificationChannel
 	Recipient   string
 	Status      NotificationStatus
