@@ -1,16 +1,9 @@
 package dto
 
-import (
-	"time"
-)
-
 type Notification struct {
 	Message     string
-	ScheduledAt time.Time
+	ScheduledAt string
 	Retries     int
 	Channel     string
 	Recipient   string
-	Status      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
 }
