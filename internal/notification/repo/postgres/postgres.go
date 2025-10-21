@@ -2,8 +2,12 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"delayed-notifier/internal/notification/repo"
 	"delayed-notifier/internal/notification/types/domain"
 	"delayed-notifier/pkg/errutils"
+	"errors"
+	"github.com/google/uuid"
 	"github.com/wb-go/wbf/dbpg"
 )
 
@@ -35,4 +39,20 @@ func (r *Repo) CreateNotification(ctx context.Context, notification domain.Notif
 	}
 
 	return nil
+}
+
+func (r *Repo) GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.NotificationStatus, error) {
+	const op = "repo.notification.GetStatusByID"
+
+	query := `SELECT status FROM notifications WHERE id = $1`
+
+	var status domain.NotificationStatus
+	if err := r.db.QueryRowContext(ctx, query, ID).Scan(&status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", errutils.Wrap(op, repo.ErrNotifNotFound)
+		}
+		return "", errutils.Wrap(op, err)
+	}
+
+	return status, nil
 }
