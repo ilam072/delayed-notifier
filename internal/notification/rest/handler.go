@@ -1,22 +1,30 @@
 package rest
 
 import (
+	"context"
 	"delayed-notifier/internal/notification/service"
 	"delayed-notifier/internal/notification/types/dto"
 	"delayed-notifier/internal/response"
 	"encoding/json"
+	"errors"
+	"github.com/google/uuid"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/retry"
 	"github.com/wb-go/wbf/zlog"
 	"net/http"
 )
 
+type Notification interface {
+	Create(ctx context.Context, notification dto.Notification, strategy retry.Strategy) error
+	GetStatusByID(ctx context.Context, ID string) (string, error)
+}
+
 type Handler struct {
-	notification service.Notification
+	notification Notification
 	strategy     retry.Strategy
 }
 
-func New(notification service.Notification, strategy retry.Strategy) *Handler {
+func New(notification Notification, strategy retry.Strategy) *Handler {
 	return &Handler{
 		notification: notification,
 		strategy:     strategy,
@@ -38,4 +46,25 @@ func (h *Handler) CreateNotification(c *ginext.Context) {
 	}
 
 	c.Status(http.StatusCreated)
+}
+
+func (h *Handler) GetNotificationStatus(c *ginext.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("id must be UUID format"))
+		return
+	}
+
+	status, err := h.notification.GetStatusByID(c.Request.Context(), id.String())
+	if err != nil {
+		if errors.Is(err, service.ErrNotifNotFound) {
+			c.JSON(http.StatusNotFound, response.Error("notification with such id not found"))
+			return
+		}
+		zlog.Logger.Error().Err(err).Msg("failed to get notification status")
+		c.JSON(http.StatusInternalServerError, response.Error("failed to get notification status"))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(status))
 }

@@ -39,24 +39,24 @@ var (
 	ErrNotifNotFound = errors.New("notification not found")
 )
 
-func (s *Notification) Create(ctx context.Context, notification dto.Notification, strategy retry.Strategy) error {
+func (n *Notification) Create(ctx context.Context, notification dto.Notification, strategy retry.Strategy) error {
 	const op = "service.notification.Create"
 
 	domainNotif, err := dtoToDomain(notification)
 	if err != nil {
 		return errutils.Wrap(op, err)
 	}
-	if err := s.notifRepo.CreateNotification(ctx, domainNotif); err != nil {
+	if err := n.notifRepo.CreateNotification(ctx, domainNotif); err != nil {
 		return errutils.Wrap(op, err)
 	}
 
-	err = s.cache.SetStatusWithRetry(ctx, domainNotif.ID.String(), string(domainNotif.Status), strategy)
+	err = n.cache.SetStatusWithRetry(ctx, domainNotif.ID.String(), string(domainNotif.Status), strategy)
 	if err != nil {
 		return errutils.Wrap(op, err)
 	}
 
 	message := domainToMessage(domainNotif)
-	if err = s.notifier.Publish(message, strategy); err != nil {
+	if err = n.notifier.Publish(message, strategy); err != nil {
 		return errutils.Wrap(op, err)
 	}
 
