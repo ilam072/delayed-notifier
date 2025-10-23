@@ -14,6 +14,7 @@ import (
 	"delayed-notifier/internal/validator"
 	"delayed-notifier/pkg/clients/email"
 	"delayed-notifier/pkg/db"
+	"fmt"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/rabbitmq"
 	"github.com/wb-go/wbf/redis"
@@ -37,6 +38,7 @@ func main() {
 
 	// Initialize config
 	cfg := config.MustLoad()
+	fmt.Printf("SMTP Config: %+v\n", cfg.SMTP)
 
 	// Connect to DB
 	DB, err := db.OpenDB(cfg.DB)
@@ -45,7 +47,7 @@ func main() {
 	}
 
 	// Connect to RabbitMQ
-	conn, err := rabbitmq.Connect(cfg.RabbitMQ.Addr(), cfg.RabbitMQ.Retries, cfg.RabbitMQ.Pause)
+	conn, err := rabbitmq.Connect(cfg.RabbitMQ.Url(), cfg.RabbitMQ.Retries, cfg.RabbitMQ.Pause)
 	if err != nil {
 		if err != nil {
 			zlog.Logger.Fatal().Err(err).Msg("failed to connect to RabbitMQ")

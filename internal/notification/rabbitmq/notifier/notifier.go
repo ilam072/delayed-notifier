@@ -62,7 +62,8 @@ func New(channel *rabbitmq.Channel, opts Opts) (*Notifier, error) {
 	}
 
 	table = amqp.Table{
-		"x-dead-letter-routing-key": opts.DLQ, // "notification-dlq"
+		"x-dead-letter-exchange":    opts.DLQ,        // exchange, куда будут падать сообщения
+		"x-dead-letter-routing-key": opts.RoutingKey, // ключ маршрутизации для DLX
 	}
 
 	queue, err := channel.QueueDeclare(

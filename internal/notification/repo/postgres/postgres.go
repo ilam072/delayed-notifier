@@ -44,7 +44,7 @@ func (r *Repo) CreateNotification(ctx context.Context, notification domain.Notif
 func (r *Repo) GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.NotificationStatus, error) {
 	const op = "repo.notification.GetStatusByID"
 
-	query := `SELECT status FROM notifications WHERE id = $1`
+	query := `SELECT status FROM notification WHERE id = $1`
 
 	var status domain.NotificationStatus
 	if err := r.db.QueryRowContext(ctx, query, ID).Scan(&status); err != nil {
@@ -60,7 +60,7 @@ func (r *Repo) GetStatusByID(ctx context.Context, ID uuid.UUID) (domain.Notifica
 func (r *Repo) UpdateStatus(ctx context.Context, ID uuid.UUID, status domain.NotificationStatus) error {
 	const op = "repo.notification.UpdateStatus"
 
-	query := `UPDATE notifications SET status = $1 WHERE id = $2`
+	query := `UPDATE notification SET status = $1 WHERE id = $2`
 
 	res, err := r.db.ExecContext(ctx, query, status, ID)
 	if err != nil {

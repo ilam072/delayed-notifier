@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+    postgres:
+        image: postgres:16
+        container_name: delayed-notifier-postgres
+        restart: always
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: delayed_notifier_db
+        ports:
+            - "5433:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7
+        container_name: delayed-notifier-redis
+        restart: always
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+        command: ["redis-server", "--appendonly", "yes"]
+
+    rabbitmq:
+        build:
+            context: .
+            dockerfile: rabbitmq/Dockerfile
+        container_name: delayed-notifier-rabbitmq
+        restart: always
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASS: guest
+        ports:
+            - "5672:5672"
+        healthcheck:
+            test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    migrator:
+        image: migrate/migrate:latest
+        container_name: delayed-notifier-migrator
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - ./migrations:/migrations
+        entrypoint: [
+            "migrate",
+            "-path", "/migrations",
+            "-database", "postgres://postgres:postgres@postgres:5432/delayed_notifier_db?sslmode=disable",
+            "up"
+        ]
+        restart: "on-failure"
+
+volumes:
+    postgres_data:
+    redis_data:

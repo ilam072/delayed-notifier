@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/wb-go/wbf/config"
 	"log"
 	"net"
@@ -12,8 +13,8 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:",squash"`
 	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
 	Redis    RedisConfig    `mapstructure:",squash"`
-	SMTP     SMTPConfig
-	Retry    RetryConfig `mapstructure:",squash"`
+	SMTP     SMTPConfig     `mapstructure:",squash"`
+	Retry    RetryConfig    `mapstructure:",squash"`
 }
 
 type DBConfig struct {
@@ -81,8 +82,8 @@ func MustLoad() *Config {
 	return &cfg
 }
 
-func (r *RabbitMQConfig) Addr() string {
-	return net.JoinHostPort(r.Host, r.Port)
+func (r *RabbitMQConfig) Url() string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%s/", r.User, r.Password, r.Host, r.Port)
 }
 
 func (r *RedisConfig) Addr() string {
