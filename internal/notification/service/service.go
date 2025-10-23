@@ -4,6 +4,7 @@ import (
 	"context"
 	"delayed-notifier/internal/notification/rabbitmq/notifier"
 	"delayed-notifier/internal/notification/repo"
+	"delayed-notifier/internal/notification/senders"
 	"delayed-notifier/internal/notification/types/domain"
 	"delayed-notifier/internal/notification/types/dto"
 	"delayed-notifier/pkg/errutils"
@@ -34,6 +35,21 @@ type Notification struct {
 	notifRepo Repo
 	notifier  Notifier
 	cache     Cache
+	senders   senders.NotificationSenders
+}
+
+func NewNotification(
+	notifRepo Repo,
+	notifier Notifier,
+	cache Cache,
+	senders senders.NotificationSenders,
+) *Notification {
+	return &Notification{
+		notifRepo: notifRepo,
+		notifier:  notifier,
+		cache:     cache,
+		senders:   senders,
+	}
 }
 
 var (
@@ -108,6 +124,18 @@ func (n *Notification) SetStatus(ctx context.Context, ID string, status string, 
 
 	if err := n.cache.SetStatusWithRetry(ctx, ID, status, strategy); err != nil {
 		zlog.Logger.Error().Err(err).Str("id", ID).Msg("failed to cache notification status")
+	}
+
+	return nil
+}
+
+func (n *Notification) Send(notification dto.SendNotification) error {
+	const op = "service.notification.Send"
+
+	channel := domain.NotificationChannel(notification.Channel)
+	if err := n.senders.ForChannel(channel).
+		Send(notification.Message, notification.Recipient); err != nil {
+		return errutils.Wrap(op, err)
 	}
 
 	return nil

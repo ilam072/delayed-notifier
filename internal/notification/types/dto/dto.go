@@ -6,3 +6,10 @@ type Notification struct {
 	Channel     string
 	Recipient   string
 }
+
+type SendNotification struct {
+	Message     string
+	ScheduledAt string
+	Channel     string
+	Recipient   string
+}
