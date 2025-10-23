@@ -31,9 +31,10 @@ type Handler struct {
 	strategy     retry.Strategy
 }
 
-func New(notification Notification, strategy retry.Strategy) *Handler {
+func New(notification Notification, validator Validator, strategy retry.Strategy) *Handler {
 	return &Handler{
 		notification: notification,
+		validator:    validator,
 		strategy:     strategy,
 	}
 }

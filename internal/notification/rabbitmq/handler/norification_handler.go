@@ -20,6 +20,10 @@ type Handler struct {
 	notification Notification
 }
 
+func New(notification Notification) *Handler {
+	return &Handler{notification: notification}
+}
+
 func (h *Handler) HandleNotif(ctx context.Context, notification notifier.Message, strategy retry.Strategy) {
 	id := notification.ID.String()
 

@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/wb-go/wbf/config"
 	"log"
+	"net"
 	"time"
 )
 
@@ -10,7 +11,9 @@ type Config struct {
 	DB       DBConfig       `mapstructure:",squash"`
 	Server   ServerConfig   `mapstructure:",squash"`
 	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
-	Retry    RetryConfig    `mapstructure:",squash"`
+	Redis    RedisConfig    `mapstructure:",squash"`
+	SMTP     SMTPConfig
+	Retry    RetryConfig `mapstructure:",squash"`
 }
 
 type DBConfig struct {
@@ -30,14 +33,31 @@ type ServerConfig struct {
 }
 
 type RabbitMQConfig struct {
-	User       string `mapstructure:"RABBIT_USER"`
-	Password   string `mapstructure:"RABBIT_PASSWORD"`
-	Host       string `mapstructure:"RABBIT_HOST"`
-	Port       string `mapstructure:"RABBIT_PORT"`
-	Exchange   string `mapstructure:"EXCHANGE"`
-	RoutingKey string `mapstructure:"ROUTING_KEY"`
-	Queue      string `mapstructure:"QUEUE"`
-	DLQ        string `mapstructure:"DLQ"`
+	User       string        `mapstructure:"RABBIT_USER"`
+	Password   string        `mapstructure:"RABBIT_PASSWORD"`
+	Host       string        `mapstructure:"RABBIT_HOST"`
+	Port       string        `mapstructure:"RABBIT_PORT"`
+	Retries    int           `mapstructure:"RETRIES"`
+	Pause      time.Duration `mapstructure:"PAUSE"`
+	Exchange   string        `mapstructure:"EXCHANGE"`
+	RoutingKey string        `mapstructure:"ROUTING_KEY"`
+	Queue      string        `mapstructure:"QUEUE"`
+	DLQ        string        `mapstructure:"DLQ"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"REDIS_HOST"`
+	Port     string `mapstructure:"REDIS_PORT"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
+}
+
+type SMTPConfig struct {
+	Host     string `mapstructure:"SMTP_HOST"`
+	Port     string `mapstructure:"SMTP_PORT"`
+	Username string `mapstructure:"SMTP_USERNAME"`
+	Password string `mapstructure:"SMTP_PASSWORD"`
+	From     string `mapstructure:"FROM"`
 }
 
 type RetryConfig struct {
@@ -59,4 +79,12 @@ func MustLoad() *Config {
 	}
 
 	return &cfg
+}
+
+func (r *RabbitMQConfig) Addr() string {
+	return net.JoinHostPort(r.Host, r.Port)
+}
+
+func (r *RedisConfig) Addr() string {
+	return net.JoinHostPort(r.Host, r.Port)
 }
