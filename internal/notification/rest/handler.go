@@ -7,6 +7,7 @@ import (
 	"delayed-notifier/internal/response"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/retry"
@@ -20,8 +21,13 @@ type Notification interface {
 	SetStatus(ctx context.Context, ID string, status string, strategy retry.Strategy) error
 }
 
+type Validator interface {
+	Validate(i interface{}) error
+}
+
 type Handler struct {
 	notification Notification
+	validator    Validator
 	strategy     retry.Strategy
 }
 
@@ -38,6 +44,11 @@ func (h *Handler) CreateNotification(c *ginext.Context) {
 	if err := json.NewDecoder(c.Request.Body).Decode(&dtoNotif); err != nil {
 		zlog.Logger.Error().Err(err).Msg("failed to decode request body")
 		c.JSON(http.StatusBadRequest, response.Error("invalid request body"))
+		return
+	}
+
+	if err := h.validator.Validate(dtoNotif); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(fmt.Sprintf("validation error: %s", err.Error())))
 		return
 	}
 
